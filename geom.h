@@ -6,7 +6,8 @@ using namespace std;
 
 const int INF = 2e9;
 
-struct Point {
+class Point {
+public:
     Point() {}
 
     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
@@ -53,15 +54,29 @@ Vector operator-(const Point &a, const Point &b) {
     return {b.x - a.x, b.y - a.y, b.z - a.z};
 }
 
+Vector operator-(const Vector &a, const Vector &b) {
+    return {a.x - b.x, a.y - b.y, a.z - b.z};
+}
+
+Vector operator+(const Vector &a, const Vector &b) {
+    return {a.x + b.x, a.y + b.y, a.z + b.z};
+}
+
 struct Color {
 
     Color(double r=0, double g=0, double b=0) : r(r), g(g), b(b) {}
     double r, g, b;
 };
 
-struct Sphere {
+class Sphere {
+public:
+
+
+
+    Sphere(Point o, Color col, double r) : o(o), col(col), r(r) {}
+
     Point Intersection(Point pos, Vector ray) {
-        auto u = (pos - o);
+        auto u = (o-pos);
         double a = ray * ray;
         double b = ray * u * 2;
         double c = u * u - r * r;
@@ -84,5 +99,5 @@ struct Sphere {
 
     Point o;
     Color col;
-    double r;
+    double r{};
 };

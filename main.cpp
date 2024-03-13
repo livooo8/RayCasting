@@ -11,49 +11,64 @@ struct Light{
 };
 
 struct Pixel {
-    Pixel(double intensity, Color col): col(col), intensity(intensity) {}
+    Pixel(double intensity, double spec, Color col): col(col), specular(spec), intensity(intensity) {}
 
     double intensity;
+    double specular;
     Color col;
 };
 
 ostream& operator<<(ostream &out, Pixel a) {
-    return out << (int)(min(1.0,a.col.r * a.intensity) * MAXCOLOR) << ' ' << (int)(min(1.0,a.col.g * a.intensity) * MAXCOLOR) << ' ' << (int)(min(1.0,a.col.b * a.intensity) * MAXCOLOR) << '\n';
+    return out << (int)(min(1.0,a.col.r * a.intensity + a.specular) * MAXCOLOR) << ' ' << (int)(min(1.0,a.col.g * a.intensity  + a.specular) * MAXCOLOR) << ' ' << (int)(min(1.0,a.col.b * a.intensity + a.specular ) * MAXCOLOR) << '\n';
 }
 
+Vector Reflection(Vector norm, Vector a) {
+    double angle = norm * (a.Mul(-1));
+    Vector x = norm.Mul(angle);
+    Vector y = a - x.Mul(-1);
+    Vector reflected = x + y;
+    return reflected.Norm();
+}
 
 void drawSphere(vector<vector<Pixel>> &pic, Point o, vector<Light> &lights, vector<Sphere> &a) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < M; j++) {
-            double cy = i - N / 2.0;
-            double cx = j - M / 2.0;
-            double x = cx / M;
-            double y = -cy / N;
+
+            double x = -0.5 + (double)j /M;
+            double y = 0.5 - (double)i / N;
             double z = 1;
-            Vector ray = Vector(o, Point(x,y,z)).Norm();
+            Vector ray = Vector(o, Point(x,y,z));
             double mindist = INF;
-            double svet = 0;
             Color c;
+            Vector norm;
+            Sphere the_nearest = {Point(0,0,0), Color(0,0,0), 0};
             for (auto sphere : a) {
                 auto Inter = sphere.Intersection(o, ray);
-                if (Inter.x == -INF) {
+                if (Inter.x == -INF || Vector(Inter, o).len() > mindist) {
                     continue;
                 } else {
-                    if (Vector(Inter, o).len() > mindist) {
-                        continue;
-                    }
                     mindist = Vector(Inter, o).len();
-                    Vector norm = Vector(Inter, sphere.o).Norm();
+                    norm = Vector(sphere.o,Inter).Norm();
                     c = sphere.col;
-                    svet = 0;
-                    for (auto light : lights) {
-                        Vector raylight = Vector(Inter, light.pos).Norm();
-                        double intensity = max(0.0, norm * raylight) * light.intensity;
-                        svet += intensity;
-                    }
+                    the_nearest = sphere;
                 }
             }
-            pic[i][j] = {svet, c};
+            if (mindist == INF) {
+                pic[i][j] = {1,0,{0.5,0.5,0.5}};
+                continue;
+            }
+            Point Inter = the_nearest.Intersection(o,ray);
+            double IntSum = 0;
+            double AngSum = 0;
+            for (auto light : lights) {
+                Vector raylight = Vector(Inter, light.pos).Norm();
+                IntSum += max(0.0, norm * raylight) * light.intensity;
+                Vector ref = Reflection(Vector(the_nearest.o, Inter).Norm(), Vector(light.pos, Inter).Norm());
+                double ang = pow(max(0.0, ref * Vector(Inter, o).Norm()), 51);
+                AngSum += ang;
+            }
+
+            pic[i][j] = {IntSum,AngSum, c};
         }
     }
 }
@@ -73,9 +88,9 @@ void output(ostream &out, vector<vector<Pixel>> &pic) {
 int main() {
     ofstream out;
     out.open("sphere.ppm");
-    vector<vector<Pixel>> picture(N, vector<Pixel>(M, {0,{0.5,0.5,0.5}}));
-    vector<Sphere> spheres = {{{-2, 0.5, 7}, {1,0,0}, 1.77}, {{2, 0.7, 8}, {0,0,1}, 1.7}};
-    vector<Light> lights = {{ {Point(0, 10, -7),1.8}}};
+    vector<vector<Pixel>> picture(N, vector<Pixel>(M, {0,0,{0.5,0.5,0.5}}));
+    vector<Sphere> spheres = {{{2, 0, 6}, {1,0,0}, 1}, {{-2,2,7},{0,1,0}, 1.3}};
+    vector<Light> lights = {{Point(4, 4, 0),1}, {Point(-1, -0.5,0),1.1}};
     drawSphere( picture, {0,0,0}, lights, spheres);
     output(out, picture);
     return 0;
